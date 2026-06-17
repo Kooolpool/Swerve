@@ -3,13 +3,11 @@ package org.firstinspires.ftc.twenty403.opmodes;
 import static org.firstinspires.ftc.twenty403.Setup.HardwareNames.AprilTag_Pipeline;
 import static org.firstinspires.ftc.twenty403.Setup.HardwareNames.LIMELIGHT;
 
-import android.app.appsearch.SearchResult;
 import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.gamepad.GamepadManager;
 import com.bylazar.gamepad.PanelsGamepad;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
-import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.PathChain;
 import com.qualcomm.hardware.limelightvision.LLResult;
@@ -19,8 +17,10 @@ import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.technototes.library.command.CommandScheduler;
+import com.technototes.library.command.SequentialCommandGroup;
 import com.technototes.library.structure.CommandOpMode;
 import com.technototes.library.util.Alliance;
+import com.technototes.library.util.HeadingHelper;
 import java.util.Arrays;
 import java.util.List;
 import org.firstinspires.ftc.robotcore.external.Supplier;
@@ -29,7 +29,6 @@ import org.firstinspires.ftc.twenty403.AutoConstants;
 import org.firstinspires.ftc.twenty403.Hardware;
 import org.firstinspires.ftc.twenty403.Robot;
 import org.firstinspires.ftc.twenty403.Setup;
-import org.firstinspires.ftc.twenty403.commands.EZCmd;
 import org.firstinspires.ftc.twenty403.controls.DriverController;
 import org.firstinspires.ftc.twenty403.controls.OperatorController;
 import org.firstinspires.ftc.twenty403.helpers.StartingPosition;
@@ -90,15 +89,19 @@ public class JustDrivingTeleOp extends CommandOpMode {
             limelight.start();
         }
         // use only if useing Move foward auto that relys on just setting motor powers
-        robot.follower.setPose(
-            new Pose(
-                robot.follower.getPose().getX(),
-                robot.follower.getPose().getY(),
-                robot.follower.getHeading() - 90
-            )
+        CommandScheduler.scheduleForState(
+            new SequentialCommandGroup(HeadingHelper.RestorePreviousPosition(robot.follower)),
+            OpModeState.INIT
         );
+        if (Setup.Connected.LAUNCHER) {
+            CommandScheduler.register(robot.launcherSubsystem);
+        }
+        if (Setup.Connected.FEED) {
+            CommandScheduler.register(robot.feedingSubsystem);
+        }
         telemetry.addData(">", "Robot Ready.  Press Play.");
         telemetry.update();
+        robot.follower.setMaxPowerScaling(.75);
     }
 
     @Override
@@ -109,6 +112,8 @@ public class JustDrivingTeleOp extends CommandOpMode {
 
     @Override
     public void runLoop() {
+        // telemetry.addData("imu ori", hardware.imu.getHeading(AngleUnit.DEGREES));
+        // telemetry.update();
         robot.follower.update();
 
         robot.follower.setTeleOpDrive(
@@ -125,9 +130,7 @@ public class JustDrivingTeleOp extends CommandOpMode {
         }
 
         if (Setup.Connected.LAUNCHER) {
-            robot.launcherSubsystem.readMotorVelocity();
-            robot.launcherVelociy = robot.launcherSubsystem.top.getVelocity();
-            //robot.launcherSubsystem.RunLoop(telemetry);
+            // robot.launcherSubsystem.RunLoop(telemetry);
         }
 
         if (Setup.Connected.LIMELIGHT) {

@@ -15,19 +15,18 @@ import com.bylazar.field.PanelsField;
 import com.bylazar.field.Style;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
+import com.pedropathing.ErrorCalculator;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.*;
 import com.pedropathing.math.*;
 import com.pedropathing.paths.*;
 import com.pedropathing.util.*;
-import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.technototes.library.structure.BetterSelectableOpMode;
 import java.util.ArrayList;
 import java.util.List;
 import org.firstinspires.ftc.twenty403.AutoConstants;
-import org.firstinspires.ftc.twenty403.Setup;
 
 /**
  * This is the Tuning class. It contains a selection menu for various tuning OpModes.
@@ -74,6 +73,7 @@ public class Tuning extends BetterSelectableOpMode {
                 p.add("Translational Tuner", TranslationalTuner::new);
                 p.add("Heading Tuner", HeadingTuner::new);
                 p.add("Drive Tuner", DriveTuner::new);
+                p.add("Line Tuner", Line::new);
                 p.add("Centripetal Tuner", CentripetalTuner::new);
             });
             s.folder("Tests", p -> {
@@ -87,17 +87,17 @@ public class Tuning extends BetterSelectableOpMode {
     @Override
     public void onSelect() {
         if (follower == null) {
-            follower = AutoConstants.createFollower(hardwareMap);
             PanelsConfigurables.INSTANCE.refreshClass(this);
-        } else {
-            follower = AutoConstants.createFollower(hardwareMap);
         }
+        follower = AutoConstants.createFollower(hardwareMap);
 
         follower.setStartingPose(new Pose());
 
         poseHistory = follower.getPoseHistory();
 
         telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
+
+        Drawing.init();
     }
 
     @Override
@@ -136,10 +136,7 @@ class LocalizationTest extends OpMode {
 
     @Override
     public void init() {
-        if (Setup.Connected.OTOS) {
-            SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-            otos.calibrateImu();
-        }
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /** This initializes the PoseUpdater, the mecanum drive motors, and the Panels telemetry. */
@@ -203,8 +200,7 @@ class ForwardTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
         follower.update();
         drawOnlyCurrent();
     }
@@ -221,15 +217,27 @@ class ForwardTuner extends OpMode {
         drawOnlyCurrent();
     }
 
+    @Override
+    public void start() {
+        follower.startTeleopDrive();
+        follower.update();
+    }
+
     /**
      * This updates the robot's pose estimate, and updates the Panels telemetry with the
      * calculated multiplier and draws the robot.
      */
     @Override
     public void loop() {
+        follower.setTeleOpDrive(
+            -gamepad1.left_stick_y,
+            -gamepad1.left_stick_x,
+            -gamepad1.right_stick_x,
+            true
+        );
         follower.update();
 
-        telemetryM.debug("Distance Moved: " + follower.getPose().getX());
+        telemetryM.debug("Distance Moved: " + (follower.getPose().getX() - 72));
         telemetryM.debug(
             "The multiplier will display what your forward ticks to inches should be to scale your current distance to " +
                 DISTANCE +
@@ -238,7 +246,7 @@ class ForwardTuner extends OpMode {
         telemetryM.debug(
             "Multiplier: " +
                 (DISTANCE /
-                    (follower.getPose().getX() /
+                    ((follower.getPose().getX() - 72) /
                         follower.getPoseTracker().getLocalizer().getForwardMultiplier()))
         );
         telemetryM.update(telemetry);
@@ -266,8 +274,7 @@ class LateralTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
         follower.update();
         drawOnlyCurrent();
     }
@@ -284,15 +291,27 @@ class LateralTuner extends OpMode {
         drawOnlyCurrent();
     }
 
+    @Override
+    public void start() {
+        follower.startTeleopDrive();
+        follower.update();
+    }
+
     /**
      * This updates the robot's pose estimate, and updates the Panels telemetry with the
      * calculated multiplier and draws the robot.
      */
     @Override
     public void loop() {
+        follower.setTeleOpDrive(
+            -gamepad1.left_stick_y,
+            -gamepad1.left_stick_x,
+            -gamepad1.right_stick_x,
+            true
+        );
         follower.update();
 
-        telemetryM.debug("Distance Moved: " + follower.getPose().getY());
+        telemetryM.debug("Distance Moved: " + (follower.getPose().getY() - 72));
         telemetryM.debug(
             "The multiplier will display what your strafe ticks to inches should be to scale your current distance to " +
                 DISTANCE +
@@ -301,7 +320,7 @@ class LateralTuner extends OpMode {
         telemetryM.debug(
             "Multiplier: " +
                 (DISTANCE /
-                    (follower.getPose().getY() /
+                    ((follower.getPose().getY() - 72) /
                         follower.getPoseTracker().getLocalizer().getLateralMultiplier()))
         );
         telemetryM.update(telemetry);
@@ -329,8 +348,7 @@ class TurnTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
         follower.update();
         drawOnlyCurrent();
     }
@@ -340,12 +358,18 @@ class TurnTuner extends OpMode {
     public void init_loop() {
         telemetryM.debug(
             "Turn your robot " +
-                Math.toDegrees(ANGLE) +
-                " Degrees. Your turn ticks to inches will be shown on the telemetry."
+                ANGLE +
+                " radians. Your turn ticks to inches will be shown on the telemetry."
         );
         telemetryM.update(telemetry);
 
         drawOnlyCurrent();
+    }
+
+    @Override
+    public void start() {
+        follower.startTeleopDrive();
+        follower.update();
     }
 
     /**
@@ -354,6 +378,12 @@ class TurnTuner extends OpMode {
      */
     @Override
     public void loop() {
+        follower.setTeleOpDrive(
+            -gamepad1.left_stick_y,
+            -gamepad1.left_stick_x,
+            -gamepad1.right_stick_x,
+            true
+        );
         follower.update();
 
         telemetryM.debug("Total Angle: " + follower.getTotalHeading());
@@ -399,8 +429,7 @@ class ForwardVelocityTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /** This initializes the drive motors as well as the cache of velocities and the Panels telemetry. */
@@ -418,7 +447,6 @@ class ForwardVelocityTuner extends OpMode {
         telemetryM.debug("Press B on game pad 1 to stop.");
         telemetryM.debug("pose", follower.getPose());
         telemetryM.update(telemetry);
-
         follower.update();
         drawOnlyCurrent();
     }
@@ -456,7 +484,7 @@ class ForwardVelocityTuner extends OpMode {
             telemetry.addData("PoseY", p.getY());
             telemetry.addData("PoseHeading", p.getHeading());
             telemetry.update();
-            if (Math.abs(follower.getPose().getX()) > DISTANCE) {
+            if (Math.abs(follower.getPose().getX()) > (DISTANCE + 72)) {
                 end = true;
                 stopRobot();
             } else {
@@ -498,7 +526,7 @@ class ForwardVelocityTuner extends OpMode {
 }
 
 /**
- * This is the StrafeVelocityTuner autonomous follower OpMode. This runs the robot right at max
+ * This is the StrafeVelocityTuner autonomous follower OpMode. This runs the robot left at max
  * power until it reaches some specified distance. It records the most recent velocities, and on
  * reaching the end of the distance, it averages them and prints out the velocity obtained. It is
  * recommended to run this multiple times on a full battery to get the best results. What this does
@@ -523,8 +551,7 @@ class LateralVelocityTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /**
@@ -534,7 +561,7 @@ class LateralVelocityTuner extends OpMode {
     @Override
     public void init_loop() {
         telemetryM.debug(
-            "The robot will run at 1 power until it reaches " + DISTANCE + " inches to the right."
+            "The robot will run at 1 power until it reaches " + DISTANCE + " inches to the left."
         );
         telemetryM.debug(
             "Make sure you have enough room, since the robot has inertia after cutting power."
@@ -544,12 +571,11 @@ class LateralVelocityTuner extends OpMode {
         );
         telemetryM.debug("Press B on Gamepad 1 to stop.");
         telemetryM.update(telemetry);
-
         follower.update();
         drawOnlyCurrent();
     }
 
-    /** This starts the OpMode by setting the drive motors to run right at full power. */
+    /** This starts the OpMode by setting the drive motors to run left at full power. */
     @Override
     public void start() {
         for (int i = 0; i < RECORD_NUMBER; i++) {
@@ -576,13 +602,13 @@ class LateralVelocityTuner extends OpMode {
         draw();
 
         if (!end) {
-            if (Math.abs(follower.getPose().getY()) > DISTANCE) {
+            if (Math.abs(follower.getPose().getY()) > (DISTANCE + 72)) {
                 end = true;
                 stopRobot();
             } else {
                 follower.setTeleOpDrive(0, 1, 0, true);
                 double currentVelocity = Math.abs(
-                    follower.poseTracker.getLocalizer().getVelocity().getY()
+                    follower.getVelocity().dot(new Vector(1, Math.PI / 2))
                 );
                 velocities.add(currentVelocity);
                 velocities.remove(0);
@@ -639,8 +665,7 @@ class ForwardZeroPowerAccelerationTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /** This initializes the drive motors as well as the Panels telemetryM. */
@@ -730,7 +755,7 @@ class ForwardZeroPowerAccelerationTuner extends OpMode {
 
 /**
  * This is the LateralZeroPowerAccelerationTuner autonomous follower OpMode. This runs the robot
- * to the right until a specified velocity is achieved. Then, the robot cuts power to the motors, setting
+ * to the left until a specified velocity is achieved. Then, the robot cuts power to the motors, setting
  * them to zero power. The deceleration, or negative acceleration, is then measured until the robot
  * stops. The accelerations across the entire time the robot is slowing down is then averaged and
  * that number is then printed. This is used to determine how the robot will decelerate in the
@@ -754,15 +779,14 @@ class LateralZeroPowerAccelerationTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /** This initializes the drive motors as well as the Panels telemetry. */
     @Override
     public void init_loop() {
         telemetryM.debug(
-            "The robot will run to the right until it reaches " + VELOCITY + " inches per second."
+            "The robot will run to the left until it reaches " + VELOCITY + " inches per second."
         );
         telemetryM.debug("Then, it will cut power from the drivetrain and roll to a stop.");
         telemetryM.debug("Make sure you have enough room.");
@@ -863,8 +887,7 @@ class TranslationalTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /** This initializes the Follower and creates the forward and backward Paths. */
@@ -884,9 +907,9 @@ class TranslationalTuner extends OpMode {
     public void start() {
         follower.deactivateAllPIDFs();
         follower.activateTranslational();
-        forwards = new Path(new BezierLine(new Pose(0, 0), new Pose(DISTANCE, 0)));
+        forwards = new Path(new BezierLine(new Pose(72, 72), new Pose(DISTANCE + 72, 72)));
         forwards.setConstantHeadingInterpolation(0);
-        backwards = new Path(new BezierLine(new Pose(DISTANCE, 0), new Pose(0, 0)));
+        backwards = new Path(new BezierLine(new Pose(DISTANCE + 72, 72), new Pose(72, 72)));
         backwards.setConstantHeadingInterpolation(0);
         follower.followPath(forwards);
     }
@@ -908,6 +931,15 @@ class TranslationalTuner extends OpMode {
         }
 
         telemetryM.debug("Push the robot laterally to test the Translational PIDF(s).");
+        telemetryM.addData("Zero Line", 0);
+        telemetryM.addData(
+            "Error X",
+            follower.errorCalculator.getTranslationalError().getXComponent()
+        );
+        telemetryM.addData(
+            "Error Y",
+            follower.errorCalculator.getTranslationalError().getYComponent()
+        );
         telemetryM.update(telemetry);
     }
 }
@@ -933,8 +965,7 @@ class HeadingTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /**
@@ -957,9 +988,9 @@ class HeadingTuner extends OpMode {
     public void start() {
         follower.deactivateAllPIDFs();
         follower.activateHeading();
-        forwards = new Path(new BezierLine(new Pose(0, 0), new Pose(DISTANCE, 0)));
+        forwards = new Path(new BezierLine(new Pose(72, 72), new Pose(DISTANCE + 72, 72)));
         forwards.setConstantHeadingInterpolation(0);
-        backwards = new Path(new BezierLine(new Pose(DISTANCE, 0), new Pose(0, 0)));
+        backwards = new Path(new BezierLine(new Pose(DISTANCE + 72, 72), new Pose(72, 72)));
         backwards.setConstantHeadingInterpolation(0);
         follower.followPath(forwards);
     }
@@ -984,6 +1015,8 @@ class HeadingTuner extends OpMode {
         }
 
         telemetryM.debug("Turn the robot manually to test the Heading PIDF(s).");
+        telemetryM.addData("Zero Line", 0);
+        telemetryM.addData("Error", follower.errorCalculator.getHeadingError());
         telemetryM.update(telemetry);
     }
 }
@@ -1007,8 +1040,7 @@ class DriveTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /**
@@ -1035,14 +1067,14 @@ class DriveTuner extends OpMode {
         forwards = follower
             .pathBuilder()
             .setGlobalDeceleration()
-            .addPath(new BezierLine(new Pose(0, 0), new Pose(DISTANCE, 0)))
+            .addPath(new BezierLine(new Pose(72, 72), new Pose(DISTANCE + 72, 72)))
             .setConstantHeadingInterpolation(0)
             .build();
 
         backwards = follower
             .pathBuilder()
             .setGlobalDeceleration()
-            .addPath(new BezierLine(new Pose(DISTANCE, 0), new Pose(0, 0)))
+            .addPath(new BezierLine(new Pose(DISTANCE + 72, 72), new Pose(72, 72)))
             .setConstantHeadingInterpolation(0)
             .build();
 
@@ -1069,6 +1101,8 @@ class DriveTuner extends OpMode {
         }
 
         telemetryM.debug("Driving forward?: " + forward);
+        telemetryM.addData("Zero Line", 0);
+        telemetryM.addData("Error", follower.errorCalculator.getDriveErrors()[1]);
         telemetryM.update(telemetry);
     }
 }
@@ -1093,8 +1127,7 @@ class Line extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /** This initializes the Follower and creates the forward and backward Paths. */
@@ -1113,9 +1146,9 @@ class Line extends OpMode {
     @Override
     public void start() {
         follower.activateAllPIDFs();
-        forwards = new Path(new BezierLine(new Pose(0, 0), new Pose(DISTANCE, 0)));
+        forwards = new Path(new BezierLine(new Pose(72, 72), new Pose(DISTANCE + 72, 72)));
         forwards.setConstantHeadingInterpolation(0);
-        backwards = new Path(new BezierLine(new Pose(DISTANCE, 0), new Pose(0, 0)));
+        backwards = new Path(new BezierLine(new Pose(DISTANCE + 72, 72), new Pose(72, 72)));
         backwards.setConstantHeadingInterpolation(0);
         follower.followPath(forwards);
     }
@@ -1164,8 +1197,7 @@ class CentripetalTuner extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /**
@@ -1191,16 +1223,16 @@ class CentripetalTuner extends OpMode {
         follower.activateAllPIDFs();
         forwards = new Path(
             new BezierCurve(
-                new Pose(),
-                new Pose(Math.abs(DISTANCE), 0),
-                new Pose(Math.abs(DISTANCE), DISTANCE)
+                new Pose(72, 72),
+                new Pose(Math.abs(DISTANCE) + 72, 72),
+                new Pose(Math.abs(DISTANCE) + 72, DISTANCE + 72)
             )
         );
         backwards = new Path(
             new BezierCurve(
-                new Pose(Math.abs(DISTANCE), DISTANCE),
-                new Pose(Math.abs(DISTANCE), 0),
-                new Pose(0, 0)
+                new Pose(Math.abs(DISTANCE) + 72, DISTANCE + 72),
+                new Pose(Math.abs(DISTANCE) + 72, 72),
+                new Pose(72, 72)
             )
         );
 
@@ -1243,9 +1275,9 @@ class CentripetalTuner extends OpMode {
  */
 class Triangle extends OpMode {
 
-    private final Pose startPose = new Pose(0, 0, Math.toRadians(0));
-    private final Pose interPose = new Pose(24, -24, Math.toRadians(90));
-    private final Pose endPose = new Pose(24, 24, Math.toRadians(45));
+    private final Pose startPose = new Pose(72, 72, Math.toRadians(0));
+    private final Pose interPose = new Pose(24 + 72, -24 + 72, Math.toRadians(90));
+    private final Pose endPose = new Pose(24 + 72, 24 + 72, Math.toRadians(45));
 
     private PathChain triangle;
 
@@ -1265,8 +1297,7 @@ class Triangle extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     @Override
@@ -1320,28 +1351,38 @@ class Circle extends OpMode {
     public void start() {
         circle = follower
             .pathBuilder()
-            .addPath(new BezierCurve(new Pose(0, 0), new Pose(RADIUS, 0), new Pose(RADIUS, RADIUS)))
-            .setHeadingInterpolation(HeadingInterpolator.facingPoint(0, RADIUS))
             .addPath(
                 new BezierCurve(
-                    new Pose(RADIUS, RADIUS),
-                    new Pose(RADIUS, 2 * RADIUS),
-                    new Pose(0, 2 * RADIUS)
+                    new Pose(72, 72),
+                    new Pose(RADIUS + 72, 72),
+                    new Pose(RADIUS + 72, RADIUS + 72)
                 )
             )
-            .setHeadingInterpolation(HeadingInterpolator.facingPoint(0, RADIUS))
+            .setHeadingInterpolation(HeadingInterpolator.facingPoint(72, RADIUS + 72))
             .addPath(
                 new BezierCurve(
-                    new Pose(0, 2 * RADIUS),
-                    new Pose(-RADIUS, 2 * RADIUS),
-                    new Pose(-RADIUS, RADIUS)
+                    new Pose(RADIUS + 72, RADIUS + 72),
+                    new Pose(RADIUS + 72, (2 * RADIUS) + 72),
+                    new Pose(72, (2 * RADIUS) + 72)
                 )
             )
-            .setHeadingInterpolation(HeadingInterpolator.facingPoint(0, RADIUS))
+            .setHeadingInterpolation(HeadingInterpolator.facingPoint(72, RADIUS + 72))
             .addPath(
-                new BezierCurve(new Pose(-RADIUS, RADIUS), new Pose(-RADIUS, 0), new Pose(0, 0))
+                new BezierCurve(
+                    new Pose(72, (2 * RADIUS) + 72),
+                    new Pose(-RADIUS + 72, (2 * RADIUS) + 72),
+                    new Pose(-RADIUS + 72, RADIUS + 72)
+                )
             )
-            .setHeadingInterpolation(HeadingInterpolator.facingPoint(0, RADIUS))
+            .setHeadingInterpolation(HeadingInterpolator.facingPoint(72, RADIUS + 72))
+            .addPath(
+                new BezierCurve(
+                    new Pose(-RADIUS + 72, RADIUS + 72),
+                    new Pose(-RADIUS + 72, 72),
+                    new Pose(72, 72)
+                )
+            )
+            .setHeadingInterpolation(HeadingInterpolator.facingPoint(72, RADIUS + 72))
             .build();
         follower.followPath(circle);
     }
@@ -1366,8 +1407,7 @@ class Circle extends OpMode {
 
     @Override
     public void init() {
-        SparkFunOTOS otos = hardwareMap.get(SparkFunOTOS.class, Setup.HardwareNames.OTOS);
-        otos.calibrateImu();
+        follower.setStartingPose(new Pose(72, 72));
     }
 
     /**

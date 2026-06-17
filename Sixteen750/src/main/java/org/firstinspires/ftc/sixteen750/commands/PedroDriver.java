@@ -1,23 +1,21 @@
 package org.firstinspires.ftc.sixteen750.commands;
 
-import static org.firstinspires.ftc.sixteen750.subsystems.LimelightSubsystem.limelight;
-
+import com.bylazar.configurables.annotations.Configurable;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierPoint;
 import com.pedropathing.geometry.Pose;
-import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.Limelight3A;
+import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.technototes.library.command.Command;
 import com.technototes.library.control.Stick;
 import com.technototes.library.logger.Log;
 import com.technototes.library.logger.Loggable;
 import com.technototes.library.util.Alliance;
+import com.technototes.library.util.HeadingHelper;
 import com.technototes.library.util.MathUtils;
+import com.technototes.library.util.PIDFController;
 import java.util.function.DoubleSupplier;
-
 import org.firstinspires.ftc.sixteen750.Setup;
 import org.firstinspires.ftc.sixteen750.Setup.OtherSettings;
-import org.firstinspires.ftc.sixteen750.helpers.HeadingHelper;
 import org.firstinspires.ftc.sixteen750.subsystems.LimelightSubsystem;
 
 /* Recall, the Pedro Path coordinate system:
@@ -37,8 +35,13 @@ import org.firstinspires.ftc.sixteen750.subsystems.LimelightSubsystem;
 +-------------------------------------------------+
                    [Audience]
  */
-
+@Configurable
 public class PedroDriver implements Command, Loggable {
+
+    public static double VISION_TURN_SCALE = 0.7;
+    public static PIDFCoefficients turnpidvalues = new PIDFCoefficients(0.017, 0, 0.0017, 0);
+    PIDFController pid;
+    public static double SIGN = 1;
 
     // Methods to bind to buttons (Commands)
     public void ResetGyro() {
@@ -94,7 +97,7 @@ public class PedroDriver implements Command, Loggable {
     }
 
     public void EnableVisionDriving() {
-        switchDriveStyle(DrivingStyle.Vision_NYI);
+        switchDriveStyle(DrivingStyle.Vision);
     }
 
     public void EnableFreeDriving() {
@@ -148,7 +151,8 @@ public class PedroDriver implements Command, Loggable {
     // The offset heading for field-relative controls
     double headingOffset;
     // The current rotation scaling factor
-    double turnSpeed;
+    public static double turnSpeed; //this is turnspeed FOR EVERYTHING
+    public static double visionTurnSpeed; //turnspeed for vision only
     // Camera, for future use:
     LimelightSubsystem limelightSubsystem;
     // used to keep the directions straight
@@ -164,8 +168,7 @@ public class PedroDriver implements Command, Loggable {
         Right, // Bot will hold a right angle while driving
         Square, // Both Straight & Right driving styles
         Hold, // Stay right where you are (just use Pedro)
-        // NOT YET IMPLEMENTED
-        Vision_NYI, // Bot will use Vision to find the target and aim toward it
+        Vision, // Bot will use Vision to find the target and aim toward it
         None,
     }
 
@@ -186,7 +189,13 @@ public class PedroDriver implements Command, Loggable {
         return driveMode;
     }
 
-    public PedroDriver(Follower fol, Stick xyStick, Stick rotStick, LimelightSubsystem ls, Alliance all) {
+    public PedroDriver(
+        Follower fol,
+        Stick xyStick,
+        Stick rotStick,
+        LimelightSubsystem ls,
+        Alliance all
+    ) {
         // TODO: Throw an exception or log if there's some problem with constants.
         // i.e. DEAD_ZONE is negative, or greater than 1.0
         limelightSubsystem = ls;
@@ -194,6 +203,8 @@ public class PedroDriver implements Command, Loggable {
         headingOffset = 0.0;
         alliance = all;
         holdPose = null;
+        pid = new PIDFController(turnpidvalues);
+        pid.setTarget(0);
         x = DeadZoneScale(xyStick.getXSupplier());
         y = DeadZoneScale(xyStick.getYSupplier());
         r = DeadZoneScale(rotStick.getXSupplier());
@@ -279,20 +290,24 @@ public class PedroDriver implements Command, Loggable {
                 // Angle-focused driving styles override target-based driving mode
                 targetHeading = MathUtils.snapToNearestRadiansMultiple(curHeading, Math.PI / 2);
                 break;
-            case Vision_NYI:
-                if (Setup.Connected.LIMELIGHTSUBSYSTEM && limelight != null) {
+            case Vision:
+                if (Setup.Connected.LIMELIGHTSUBSYSTEM) {
                     // --- Face AprilTag using Limelight ---
-                    @Log(name = "latest_result")
-                    LLResult result = limelight.getLatestResult();
-                    if (result != null && result.isValid()) {
-                        double tx = result.getTx(); // horizontal offset in degrees
-                        double kP_TagAlign = 0.03; // tune this gain
-                        return -kP_TagAlign * tx; // rotate until tx ~ 0
-                    } else {
-                        return 0.0; // no target → don't spin
+                    //                    targetHeading =
+                    //                        curHeading - Math.toRadians(limelightSubsystem.getLimelightRotation());
+                    // Kooolpool here below was my original prototype for auto orient and it worked decently well
+                    if (limelightSubsystem.getDistance() < 0) {
+                        return rotation;
                     }
+                    return pid.update(LimelightSubsystem.Xangle * SIGN);
+                    //                        (VISION_TURN_SCALE * -LimelightSubsystem.Xangle) /
+                    //                        limelightSubsystem.getDistance()
+                    //                    );
+                    //lowkey forgot what kevin said but i think it just sets the target heading to
+                    //where the limelight is so that vision can make the bot turn that way
+                } else {
+                    return rotation;
                 }
-                return 0;
             case Free:
             case Straight:
             default:
@@ -300,6 +315,8 @@ public class PedroDriver implements Command, Loggable {
         }
         // TODO: Use the Pedro heading PIDF to get this value?
         return (Math.clamp(targetHeading - curHeading, -1, 1) * turnSpeed);
+        //so the line above overrides the joystick and makes it ignore what the human
+        //is doing with the joystick and makes it turn a specific way (vision control)
     }
 
     @Override
@@ -354,7 +371,7 @@ public class PedroDriver implements Command, Loggable {
             case Hold:
                 drvMode = "!Hold!";
                 break;
-            case Vision_NYI:
+            case Vision:
                 drvMode = "Vision[NYI]";
                 break;
             default:

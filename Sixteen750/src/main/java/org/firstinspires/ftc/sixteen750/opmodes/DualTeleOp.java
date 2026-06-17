@@ -2,27 +2,24 @@ package org.firstinspires.ftc.sixteen750.opmodes;
 
 import static org.firstinspires.ftc.sixteen750.Setup.HardwareNames.AprilTag_Pipeline;
 
-import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.LLResultTypes;
-import com.qualcomm.hardware.limelightvision.LLStatus;
+import com.bylazar.telemetry.PanelsTelemetry;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.technototes.library.command.CommandScheduler;
 import com.technototes.library.command.SequentialCommandGroup;
 import com.technototes.library.structure.CommandOpMode;
 import com.technototes.library.util.Alliance;
-import java.util.Arrays;
-import java.util.List;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
+import com.technototes.library.util.HeadingHelper;
 import org.firstinspires.ftc.sixteen750.Hardware;
 import org.firstinspires.ftc.sixteen750.Robot;
 import org.firstinspires.ftc.sixteen750.Setup;
+import org.firstinspires.ftc.sixteen750.commands.TeleCommands;
+import org.firstinspires.ftc.sixteen750.commands.auto.Paths;
 import org.firstinspires.ftc.sixteen750.commands.driving.DrivingCommands;
 import org.firstinspires.ftc.sixteen750.controls.DriverController;
 import org.firstinspires.ftc.sixteen750.controls.OperatorController;
-import org.firstinspires.ftc.sixteen750.helpers.HeadingHelper;
 import org.firstinspires.ftc.sixteen750.helpers.StartingPosition;
-import org.firstinspires.ftc.sixteen750.subsystems.LimelightSubsystem;
+import org.firstinspires.ftc.sixteen750.subsystems.LauncherSubsystem;
 
 @TeleOp(name = "Dual Control")
 @SuppressWarnings("unused")
@@ -33,20 +30,26 @@ public class DualTeleOp extends CommandOpMode {
     public DriverController controlsDriver;
     public Hardware hardware;
     private Limelight3A limelight;
+    private PanelsTelemetry panelsTelemetry;
 
     @Override
     public void uponInit() {
         hardware = new Hardware(hardwareMap);
         robot = new Robot(hardware, Alliance.NONE, StartingPosition.Unspecified);
         controlsOperator = new OperatorController(codriverGamepad, robot);
-//        limelight = hardwareMap.get(Limelight3A.class, Setup.HardwareNames.LIMELIGHT);
+        panelsTelemetry = PanelsTelemetry.INSTANCE;
+        robot.follower.setStartingPose(Paths.getRSegmentedCurveStart());
+        // limelight = hardwareMap.get(Limelight3A.class, Setup.HardwareNames.LIMELIGHT);
         if (Setup.Connected.DRIVEBASE) {
             controlsDriver = new DriverController(driverGamepad, robot);
+            robot.intakeSubsystem.setGamepad(gamepad1);
             // Just pick a starting point
             CommandScheduler.scheduleForState(
                 new SequentialCommandGroup(
                     HeadingHelper.RestorePreviousPosition(robot.follower),
                     DrivingCommands.ResetGyro(controlsDriver.pedroDriver)
+//                    TeleCommands.SetRegressionCTeleop(robot),
+//                    TeleCommands.SetRegressionDTeleop(robot)
                 ),
                 OpModeState.INIT
             );
@@ -62,11 +65,15 @@ public class DualTeleOp extends CommandOpMode {
             telemetry.setMsTransmissionInterval(11);
 
             limelight.pipelineSwitch(AprilTag_Pipeline);
+            CommandScheduler.register(robot.limelightSubsystem);
 
             /*
              * Starts polling for data.  If you neglect to call start(), getLatestResult() will return null.
              */
             limelight.start();
+        }
+        if (Setup.Connected.LAUNCHERSUBSYSTEM) {
+            CommandScheduler.register(robot.launcherSubsystem);
         }
     }
 
@@ -75,6 +82,30 @@ public class DualTeleOp extends CommandOpMode {
         robot.prepForStart();
     }
 
+    @Override
+    public void runLoop() {
+        panelsTelemetry
+            .getTelemetry()
+            .addData(
+                "currentLaunchVelocity",
+                String.valueOf(LauncherSubsystem.currentLaunchVelocity)
+            );
+        panelsTelemetry
+            .getTelemetry()
+            .addData("launcherError", String.valueOf(LauncherSubsystem.err));
+        panelsTelemetry
+            .getTelemetry()
+            .addData("launcherTargetVelocity", String.valueOf(LauncherSubsystem.targetSpeed));
+        panelsTelemetry
+            .getTelemetry()
+            .addData("launcher1Current", String.valueOf(LauncherSubsystem.launcher1Current));
+        panelsTelemetry
+            .getTelemetry()
+            .addData("launcher2Current", String.valueOf(LauncherSubsystem.launcher2Current));
+        panelsTelemetry.getTelemetry().update(telemetry);
+    }
+
+    /*
     @Override
     public void runLoop() {
         LLStatus status = null;
@@ -105,9 +136,7 @@ public class DualTeleOp extends CommandOpMode {
             LLResult result = limelight.getLatestResult();
 
             if (result != null) {
-
                 if (result.isValid()) {
-
                     if (result.getPipelineIndex() == Setup.HardwareNames.AprilTag_Pipeline) {
                         // Access fiducial results
                         List<LLResultTypes.FiducialResult> fiducialResults =
@@ -153,11 +182,20 @@ public class DualTeleOp extends CommandOpMode {
                             // supposedly distance to apriltag
                             double distance = Math.sqrt(tx * tx + ty * ty + tz * tz);
                             if (tag_id == 21 || tag_id == 22 || tag_id == 23) {
-                                telemetry.addData("Distance to AprilTag (Obelisk)", String.valueOf(distance));
+                                telemetry.addData(
+                                    "Distance to AprilTag (Obelisk)",
+                                    String.valueOf(distance)
+                                );
                             } else if (tag_id == 20) {
-                                telemetry.addData("Distance to AprilTag (Blue)", String.valueOf(distance));
+                                telemetry.addData(
+                                    "Distance to AprilTag (Blue)",
+                                    String.valueOf(distance)
+                                );
                             } else if (tag_id == 24) {
-                                telemetry.addData("Distance to AprilTag (Red)", String.valueOf(distance));
+                                telemetry.addData(
+                                    "Distance to AprilTag (Red)",
+                                    String.valueOf(distance)
+                                );
                             }
                         }
                     }
@@ -169,6 +207,7 @@ public class DualTeleOp extends CommandOpMode {
 
         telemetry.update();
     }
+    */
 
     @Override
     public void end() {

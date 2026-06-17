@@ -1,17 +1,53 @@
 package org.firstinspires.ftc.sixteen750.commands;
 
+import com.pedropathing.geometry.BezierPoint;
 import com.technototes.library.command.Command;
 import org.firstinspires.ftc.sixteen750.Robot;
 import org.firstinspires.ftc.sixteen750.commands.auto.Paths;
+import org.firstinspires.ftc.sixteen750.subsystems.LimelightSubsystem;
 
 public class TeleCommands {
+
+    public static Command TurnTo90(Robot r) {
+        return Command.create(() ->
+            r.follower.holdPoint(new BezierPoint(90, 90), Math.toRadians(90), false)
+        ); //pose might need to be current pose?
+    }
 
     public static Command Launch(Robot r) {
         return Command.create(r.launcherSubsystem::Launch);
     }
 
+    public static Command SetFarShoot(Robot r) {
+        return Command.create(r.launcherSubsystem::FarShoot);
+    }
+
+    public static Command SetCloseShoot(Robot r) {
+        return Command.create(r.launcherSubsystem::CloseShoot);
+    }
+
+    public static Command AutoLaunch1(Robot r) {
+        return Command.create(r.launcherSubsystem::AutoLaunch1);
+    }
+
+    public static Command AutoLaunch2(Robot r) {
+        return Command.create(r.launcherSubsystem::AutoLaunch2);
+    }
+
+    public static Command FarAutoLaunch(Robot r) {
+        return Command.create(r.launcherSubsystem::FarAutoLaunch);
+    }
+
     public static Command StopLaunch(Robot r) {
         return Command.create(r.launcherSubsystem::Stop);
+    }
+
+    public static Command Rumble(Robot r) {
+        return Command.create(r.intakeSubsystem::setRumble);
+    }
+
+    public static Command RumbleOff(Robot r) {
+        return Command.create(r.intakeSubsystem::setRumbleOff);
     }
 
     public static Command IncreaseMotor(Robot r) {
@@ -58,6 +94,10 @@ public class TeleCommands {
         return Command.create(r.aimingSubsystem::testHoodUpAutoOnly);
     }
 
+    public static Command HoodUpAutoOnly2(Robot r) {
+        return Command.create(r.aimingSubsystem::testHoodUpAutoOnly2);
+    }
+
     public static Command HoodDown(Robot r) {
         return Command.create(r.aimingSubsystem::testHoodDown);
     }
@@ -78,4 +118,27 @@ public class TeleCommands {
         return Command.create(r.testSubsystem::setMotorVelocityTest);
     }
 
+    public static Command ReadVelocity(Robot r) {
+        return Command.create(r.launcherSubsystem::readVelocity);
+    }
+
+//    public static Command SetRegressionCAuto(Robot r) {
+//        return Command.create(r.launcherSubsystem::setRegressionCAuto);
+//    }
+//
+//    public static Command SetRegressionDAuto(Robot r) {
+//        return Command.create(r.launcherSubsystem::setRegressionDAuto);
+//    }
+//
+//    public static Command SetRegressionCTeleop(Robot r) {
+//        return Command.create(r.launcherSubsystem::setRegressionCTeleop);
+//    }
+//
+//    public static Command SetRegressionDTeleop(Robot r) {
+//        return Command.create(r.launcherSubsystem::setRegressionDTeleop);
+//    }
+//
+//    public static Command IncreaseRegressionDTeleop(Robot r) {
+//        return Command.create(r.launcherSubsystem::increaseRegressionDTeleop);
+//    }
 }

@@ -12,19 +12,19 @@ import com.technototes.library.hardware.motor.EncodedMotor;
 import com.technototes.library.hardware.sensor.AdafruitIMU;
 import com.technototes.library.hardware.sensor.IGyro;
 import com.technototes.library.hardware.sensor.IMU;
+import com.technototes.library.hardware.sensor.encoder.Encoder;
 import com.technototes.library.hardware.servo.Servo;
 import com.technototes.library.logger.Loggable;
 import java.util.List;
 import org.firstinspires.ftc.robotcore.external.navigation.VoltageUnit;
-import org.firstinspires.ftc.twenty403.helpers.IEncoder;
 
 public class Hardware implements Loggable {
 
-    public List<LynxModule> hubs;
+    public static List<LynxModule> hubs;
 
     public IGyro imu;
     public EncodedMotor<DcMotorEx> fl, fr, rl, rr, top, testMotor;
-    public IEncoder odoF, odoR;
+    public Encoder odoF, odoR;
     private OctoQuad octoquad;
     public CRServo bottomLeft, bottomRight;
     public Limelight3A limelight;
@@ -80,7 +80,7 @@ public class Hardware implements Loggable {
     }
 
     // We can read the voltage from the different hubs for fun...
-    public double voltage() {
+    public static double voltage() {
         double volt = 0;
         double count = 0;
         for (LynxModule lm : hubs) {

@@ -11,13 +11,14 @@ import com.technototes.library.command.CommandScheduler;
 import com.technototes.library.logger.Loggable;
 import com.technototes.library.structure.CommandOpMode;
 import com.technototes.library.util.Alliance;
+import com.technototes.library.util.HeadingHelper;
 import org.firstinspires.ftc.learnbot.Hardware;
 import org.firstinspires.ftc.learnbot.Robot;
-import org.firstinspires.ftc.learnbot.Setup.Vision;
 import org.firstinspires.ftc.learnbot.commands.SetVisionPipeline;
+import org.firstinspires.ftc.learnbot.components.Pedro;
 import org.firstinspires.ftc.learnbot.controls.DriverController;
-import org.firstinspires.ftc.learnbot.helpers.HeadingHelper;
 import org.firstinspires.ftc.learnbot.helpers.StartingPosition;
+import org.firstinspires.ftc.learnbot.subsystems.TargetSubsystem;
 
 @Configurable
 @SuppressWarnings("unused")
@@ -39,9 +40,9 @@ public class VisionDrivingTele extends CommandOpMode implements Loggable {
         robot = new Robot(hardware, Alliance.NONE, StartingPosition.Unspecified);
         controls = new DriverController(driverGamepad, robot);
         CommandScheduler.register(robot.vision);
-        CommandScheduler.scheduleInit(HeadingHelper.RestorePreviousPosition(robot.drivebase));
+        CommandScheduler.scheduleInit(HeadingHelper.RestorePreviousPosition(Pedro.getFollower()));
         CommandScheduler.scheduleInit(
-            new SetVisionPipeline(robot.vision, Vision.AprilTag_Pipeline)
+            new SetVisionPipeline(robot.vision, TargetSubsystem.Pipeline.APRIL_TAG)
         );
         CommandScheduler.scheduleJoystick(controls.stickDriver);
     }

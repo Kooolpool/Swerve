@@ -1,6 +1,5 @@
 package com.technototes.library.util;
 
-import com.qualcomm.robotcore.util.Range;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 
 /**
@@ -180,17 +179,32 @@ public class MathUtils {
         return normalizeAngle(degrees, AngleUnit.DEGREES);
     }
 
-    public static double posNegAngle(double angle, AngleUnit angleUnit) {
+    /**
+     * Returns angleDelta clamped to [-pi/-180, pi/180].
+     *
+     * @param angleDelta angle delta in radians
+     */
+    public static double normalizeDeltaAngle(double angleDelta, AngleUnit angleUnit) {
         double half = halfCircle(angleUnit);
-        return normalizeAngle(angle + half, angleUnit) - half;
+        return normalizeAngle(angleDelta + half, angleUnit) - half;
     }
 
-    public static double posNegRadians(double radians) {
-        return posNegAngle(radians, AngleUnit.RADIANS);
+    /**
+     * Returns angleDelta clamped to [-pi, pi].
+     *
+     * @param angleDelta angle delta in radians
+     */
+    public static double normalizeDeltaRadians(double angleDelta) {
+        return normalizeDeltaAngle(angleDelta, AngleUnit.RADIANS);
     }
 
-    public static double posNegDegrees(double randians) {
-        return posNegAngle(randians, AngleUnit.DEGREES);
+    /**
+     * Returns angleDelta clamped to [-180, 180].
+     *
+     * @param angleDelta angle delta in degrees
+     */
+    public static double normalizeDeltaDegrees(double angleDelta) {
+        return normalizeDeltaAngle(angleDelta, AngleUnit.DEGREES);
     }
 
     public static double fullCircle(AngleUnit angleUnit) {
@@ -199,5 +213,19 @@ public class MathUtils {
 
     public static double halfCircle(AngleUnit angleUnit) {
         return angleUnit == AngleUnit.RADIANS ? Math.PI : 180;
+    }
+
+    // Helper to make dead zones on sticks still allow good scaling
+    public static double deadZoneScale(double val, double deadZone) {
+        // Okay, we want a small dead zone in the middle of the stick, but that also means that
+        // you can't have a value any smaller than that value, so instead, we're going to scale
+        // the value after compensating for the dead zone
+
+        // If the value is inside the dead zone, just make it zero
+        if (Math.abs(val) <= deadZone) {
+            return 0.0;
+        }
+        // If the value is outside the dead zone, scale it
+        return ((val - Math.copySign(deadZone, val)) / (1.0 - deadZone));
     }
 }
